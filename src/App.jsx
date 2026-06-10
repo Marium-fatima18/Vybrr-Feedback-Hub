@@ -1,5 +1,5 @@
-import Navbar from './pages/Navbar'
-import Routepages from './pages/Routepages'
+import Navbar from './Pages/Navbar'
+import Routepages from './Pages/Routepages'
  
 function App() {
   return (
