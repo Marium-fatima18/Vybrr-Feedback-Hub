@@ -4,17 +4,20 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth, googleProvider, githubProvider } from "../Firebase";
 import './Style.css'
-import { useNavigate } from 'react-router-dom'
 
 function Auth() {
   const [mode, setMode]         = useState("login"); // "login" | "signup"
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage]   = useState({ text: "", type: "" });
-  // inside Auth():
-const navigate = useNavigate()
+  const [user, authLoading]     = useAuthState(auth)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from?.pathname || '/dashboard'
 
   const showMsg = (text, type = "error") => setMessage({ text, type });
 
@@ -28,7 +31,7 @@ const navigate = useNavigate()
     if (!validate()) return;
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      navigate('/dashboard'); 
+      navigate(from, { replace: true });
     } catch (err) {
       if (err.code === "auth/email-already-in-use") showMsg("This email is already registered. Try logging in.");
       else if (err.code === "auth/invalid-email")   showMsg("Please enter a valid email address.");
@@ -40,7 +43,7 @@ const navigate = useNavigate()
     if (!validate()) return;
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/dashboard');
+      navigate(from, { replace: true });
     } catch (err) {
       if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password" || err.code === "auth/invalid-credential")
         showMsg("Incorrect email or password.");
@@ -54,7 +57,7 @@ const navigate = useNavigate()
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      navigate('/dashboard');
+      navigate(from, { replace: true });
     } catch (err) {
       showMsg("Google login failed. Please try again.");
     }
@@ -63,7 +66,7 @@ const navigate = useNavigate()
   const handleGithubLogin = async () => {
     try {
       await signInWithPopup(auth, githubProvider);
-      navigate('/dashboard');
+      navigate(from, { replace: true });
     } catch (err) {
       if (err.code === "auth/account-exists-with-different-credential")
         showMsg("An account already exists with this email using a different sign-in method.");
@@ -73,6 +76,10 @@ const navigate = useNavigate()
   };
 
   const handleSubmit = () => mode === "login" ? handleLogin() : handleSignup();
+
+  if (!authLoading && user) {
+    return <Navigate to={from} replace />
+  }
 
   return (
     <div className="auth-container">

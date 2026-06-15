@@ -6,8 +6,7 @@ import Submit from './Submit'
 import Auth from './Auth'
 import Errorpage from './Errorpage'
 import PostDetail from './Postdetail'
-import ProtectedRoute from './ProtectedRoute'   // ← add this
-
+import ProtectedRoute from './ProtectedRoute'   
 function Routepages() {
   return (
     <Routes>
