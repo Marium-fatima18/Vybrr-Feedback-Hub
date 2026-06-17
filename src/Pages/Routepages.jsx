@@ -6,16 +6,25 @@ import Submit from './Submit'
 import Auth from './Auth'
 import Errorpage from './Errorpage'
 import PostDetail from './Postdetail'
-import ProtectedRoute from './ProtectedRoute'   
+import ProtectedRoute from './ProtectedRoute'
+
 function Routepages() {
   return (
     <Routes>
-      <Route path='/' element={<Home />} />
-      <Route path='/explore' element={<Explore />} />
+      {/* Public: the login / signup gateway */}
       <Route path='/auth' element={<Auth />} />
-      <Route path="/post-detail" element={<PostDetail />} />
 
-      {/* Protected routes */}
+      {/* Everything below requires login — unauthenticated users
+          are redirected to /auth, so the login page always shows first. */}
+      <Route path='/' element={
+        <ProtectedRoute><Home /></ProtectedRoute>
+      } />
+      <Route path='/explore' element={
+        <ProtectedRoute><Explore /></ProtectedRoute>
+      } />
+      <Route path='/post/:id' element={
+        <ProtectedRoute><PostDetail /></ProtectedRoute>
+      } />
       <Route path='/dashboard' element={
         <ProtectedRoute><Dashboard /></ProtectedRoute>
       } />
