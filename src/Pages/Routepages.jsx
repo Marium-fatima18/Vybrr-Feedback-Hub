@@ -13,7 +13,7 @@ function Routepages() {
       <Route path='/' element={<Home />} />
       <Route path='/explore' element={<Explore />} />
       <Route path='/auth' element={<Auth />} />
-      <Route path="/post-detail" element={<PostDetail />} />
+<Route path="/post/:id" element={<PostDetail />} />
 
       {/* Protected routes */}
       <Route path='/dashboard' element={

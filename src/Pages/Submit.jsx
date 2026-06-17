@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom' 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage, auth } from '../Firebase'
+import Button from '../components/Button' 
 import './Style.css'
 
 const CATEGORIES = ['Tech', 'Design', 'Dev', 'Career', 'Tutorial', 'Opinion', 'News']
 
 function Submit() {
-    const navigate = useNavigate()
+  const navigate = useNavigate()
 
   const [title, setTitle]             = useState('')
   const [description, setDescription] = useState('')
@@ -59,7 +60,7 @@ function Submit() {
         .map(t => t.trim().toLowerCase())
         .filter(Boolean)
 
-      const docRef = await addDoc(collection(db, 'posts'), {
+      await addDoc(collection(db, 'posts'), {
         title:       title.trim(),
         description: description.trim(),
         category,
@@ -148,7 +149,7 @@ function Submit() {
 
           {/* Image upload */}
           <div className="submit-field">
-            <label>Cover image</label>
+            <label>Cover image (Optional)</label>
             {!preview ? (
               <label className="upload-zone" htmlFor="image-upload">
                 <div className="upload-icon">
@@ -181,24 +182,22 @@ function Submit() {
 
           {/* Actions */}
           <div className="submit-actions">
-            <button
-              className="submit-btn-primary"
+            <Button
               onClick={handleSubmit}
-              disabled={loading}
+              loading={loading}
+              loadingText="Publishing..."
+              variant="primary"
             >
-              {loading ? (
-                <span className="submit-loading">
-                  <span className="spinner" /> Publishing...
-                </span>
-              ) : 'Publish post →'}
-            </button>
-            <button
-              className="submit-btn-ghost"
-              onClick={() => navigate('/')}
+              Publish post →
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/')} // Fixed to navigate back home safely
               disabled={loading}
+              variant="ghost"
             >
               Cancel
-            </button>
+            </Button>
           </div>
 
         </div>
