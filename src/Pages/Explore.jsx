@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '../Firebase'
 import PostCard from '../components/PostCard'
@@ -7,32 +7,17 @@ import './Style.css'
 function Explore() {
   const [allPosts, setAllPosts] = useState([])
   const [loading, setLoading] = useState(true)
-  
-  // ==========================================
-  // TODO 1: SEARCH & CATEGORY STATES
-  // ==========================================
-  /* 👉 Hint: Hamein do states chahiye: 
-     1. Search bar ke text ko track karne ke liye (Initial value: '')
-     2. Selected category tab ko track karne ke liye (Initial value: 'All')
-  */
-  // ✍️ Apni dono states yahan likhein:
+  const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
 
+  const categories = ['All', 'Tech', 'Design', 'Dev', 'Career', 'Tutorial', 'Opinion', 'News']
 
-
-
-  const categories = ['All', 'Tech', 'Lifestyle', 'Education', 'Entertainment']
-
-  // FETCHING DATA FROM FIREBASE
   useEffect(() => {
     const fetchAllPosts = async () => {
       try {
         const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'))
         const querySnapshot = await getDocs(q)
-        
-        const fetched = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
+        const fetched = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         setAllPosts(fetched)
       } catch (error) {
         console.error("Error fetching explore posts: ", error)
@@ -43,80 +28,54 @@ function Explore() {
     fetchAllPosts()
   }, [])
 
-
-  // ==========================================
-  // TODO 2: THE JAVASCRIPT FILTER LOGIC
-  // ==========================================
-  /* 👉 Hint: Hamein allPosts array par `.filter()` chalana hai taake hum dynamic searching kar sakein.
-     - Pehli condition: Kya post.category select ki hui category se match karti hai? (Yaa fir category === 'All' hai?)
-     - Doosri condition: Kya post.title ya post.description user ke search query text ko match karta hai? (.toLowerCase() aur .includes() use karein)
-  */
-  const filteredPosts = allPosts // ✍️ Isko change kar ke pure JavaScript filter lagaein!
-
+  const filteredPosts = allPosts.filter(post => {
+    const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory
+    const term = search.toLowerCase()
+    const matchesSearch =
+      (post.title || '').toLowerCase().includes(term) ||
+      (post.description || '').toLowerCase().includes(term)
+    return matchesCategory && matchesSearch
+  })
 
   return (
-    <div className="explore-container">
-      
-      {/* HEADER & SEARCH BAR */}
+    <div className="page-wrap explore-wrap">
       <div className="explore-header">
-        <h1>Explore Community Content</h1>
-        <p>Discover interesting stories, insights, and discussions.</p>
-        
-        <div className="search-box-wrapper">
-          {/* ==========================================
-              TODO 3: CONNECT THE SEARCH INPUT
-             ========================================== */}
-          <input 
-            type="text"
-            placeholder="Search by title or keyword..."
-            className="search-input"
-            /* ✍️ Is input box ko apni search state se connect karein using 'value' and 'onChange' */
+        <h1>Explore Vybrr</h1>
+        <p>Discover stories, insights, and discussions from the community.</p>
 
+        <div className="feed-search explore-search">
+          <span>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by title or keyword…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
+          {search && <button onClick={() => setSearch('')}>✕</button>}
         </div>
       </div>
 
-      {/* CATEGORY FILTER BUTTONS */}
-      <div className="category-tabs-row">
-        {categories.map((cat, index) => {
-          // ==========================================
-          // TODO 4: CHECK IF TAB IS ACTIVE
-          // ==========================================
-          /* 👉 Hint: Check karein agar 'cat' aur aapki selectedCategory state barabar hain, 
-             toh activeTab boolean ko true kar dein taake CSS apply ho sakay.
-          */
-          const isActive = false // ✍️ Isko logic se replace karein (e.g., cat === yourState)
-
-          return (
-            <button
-              key={index}
-              /* ✍️ onClick par apni category state ko update karwane ka handler lagayein */
-              onClick={() => {}} 
-              className={`category-tab-btn ${isActive ? 'active-tab' : ''}`}
-            >
-              {cat}
-            </button>
-          )
-        })}
+      <div className="category-tabs">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`category-tab ${cat === selectedCategory ? 'category-tab-active' : ''}`}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
-      {/* POSTS GRID DISPLAY */}
-      <div className="explore-main-feed">
+      <div className="explore-feed">
         {loading ? (
-          <div className="feed-message">Loading fresh feed...</div>
+          <div className="feed-skeleton">Loading fresh feed…</div>
         ) : filteredPosts.length > 0 ? (
-          <div className="posts-grid">
-            {filteredPosts.map(post => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
+          filteredPosts.map(post => <PostCard key={post.id} post={post} />)
         ) : (
-          <div className="feed-message no-results">
-            No posts match your search or category filter.
-          </div>
+          <div className="feed-empty-card">No posts match your search or category filter.</div>
         )}
       </div>
-
     </div>
   )
 }

@@ -71,7 +71,8 @@ function Submit() {
         authorEmail: currentUser.email || '',
         createdAt:   serverTimestamp(),
         likes:       0,
-        comments:    0,
+        likedBy:     [],
+        comments:    [],
       })
 
       navigate('/dashboard')
