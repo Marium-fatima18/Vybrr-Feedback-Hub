@@ -1,57 +1,78 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { query, collection, where, getDocs } from 'firebase/firestore'
+import { query, collection, where, getDocs, orderBy } from 'firebase/firestore'
 import { auth, db } from '../Firebase'
 import PostCard from '../components/PostCard'
+import StoriesBar from '../components/StoriesBar'
+import { avatarStyle } from '../utils/avatarColor'
 import './Style.css'
 
 function Dashboard() {
   const [myPosts, setMyPosts] = useState([])
+  const [myRecentComments, setMyRecentComments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [interactionsLoading, setInteractionsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchDashboardAssets = async () => {
-      if (!auth.currentUser) return
+    if (!auth.currentUser) return
+
+    const fetchMyPosts = async () => {
       try {
         const q = query(collection(db, 'posts'), where('authorId', '==', auth.currentUser.uid))
-        const querySnapshot = await getDocs(q)
-        const fetchedPosts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setMyPosts(fetchedPosts)
+        const snapshot = await getDocs(q)
+        setMyPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
       } catch (error) {
-        console.error("Error fetching dashboard: ", error)
+        console.error("Error fetching my posts:", error)
       } finally {
         setLoading(false)
       }
     }
-    fetchDashboardAssets()
+
+    const fetchMyComments = async () => {
+      try {
+        const snapshot = await getDocs(
+          query(collection(db, 'posts'), orderBy('createdAt', 'desc'))
+        )
+        const interactions = []
+        snapshot.docs.forEach(doc => {
+          const data = doc.data()
+          if (!Array.isArray(data.comments)) return
+          data.comments.forEach((comment, i) => {
+            if (comment.userId === auth.currentUser?.uid) {
+              interactions.push({
+                id: `${doc.id}-${i}`,
+                postId: doc.id,
+                postTitle: data.title,
+                text: comment.text,
+                createdAt: comment.createdAt,
+              })
+            }
+          })
+        })
+        interactions.sort((a, b) => {
+          const t = (c) => c.createdAt?.toDate ? c.createdAt.toDate().getTime() : 0
+          return t(b) - t(a)
+        })
+        setMyRecentComments(interactions.slice(0, 8))
+      } catch (error) {
+        console.error("Error fetching interactions:", error)
+      } finally {
+        setInteractionsLoading(false)
+      }
+    }
+
+    fetchMyPosts()
+    fetchMyComments()
   }, [])
 
-  // Derived from state (so it recomputes after posts load) — fixes the stale-closure bug
-  const totalPosts = myPosts.length
-  const totalLikes = myPosts.reduce((sum, post) => sum + (post.likes || 0), 0)
+  const totalPosts    = myPosts.length
+  const totalLikes    = myPosts.reduce((sum, p) => sum + (p.likes || 0), 0)
   const totalComments = myPosts.reduce(
-    (sum, post) => sum + (Array.isArray(post.comments) ? post.comments.length : 0),
-    0
+    (sum, p) => sum + (Array.isArray(p.comments) ? p.comments.length : 0), 0
   )
 
-  const myRecentComments = []
-  myPosts.forEach(post => {
-    if (Array.isArray(post.comments)) {
-      post.comments.forEach((comment, i) => {
-        if (comment.userId === auth.currentUser?.uid) {
-          myRecentComments.push({
-            id: `${post.id}-${i}`,
-            postTitle: post.title,
-            text: comment.text,
-            createdAt: comment.createdAt
-          })
-        }
-      })
-    }
-  })
-
-  const user = auth.currentUser
-  const name = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Contributor')
+  const user    = auth.currentUser
+  const name    = user?.displayName || (user?.email ? user.email.split('@')[0] : 'Contributor')
   const initial = name.charAt(0).toUpperCase()
 
   return (
@@ -59,7 +80,7 @@ function Dashboard() {
 
       {/* Profile header */}
       <div className="dash-header">
-        <span className="avatar avatar-lg">{initial}</span>
+        <span className="avatar avatar-lg" style={avatarStyle(user?.displayName || user?.email || 'V')}>{initial}</span>
         <div>
           <h1>{name}</h1>
           <p>{user?.email}</p>
@@ -67,11 +88,14 @@ function Dashboard() {
         <Link to="/submit" className="btn-primary dash-cta">➕ Create post</Link>
       </div>
 
+      {/* Stories */}
+      <StoriesBar />
+
       {/* Stats */}
       <div className="dash-stats">
         <div className="dash-stat"><span className="dash-stat-num">{totalPosts}</span><span className="dash-stat-label">Posts</span></div>
         <div className="dash-stat"><span className="dash-stat-num">{totalLikes}</span><span className="dash-stat-label">Likes received</span></div>
-        <div className="dash-stat"><span className="dash-stat-num">{totalComments}</span><span className="dash-stat-label">Comments</span></div>
+        <div className="dash-stat"><span className="dash-stat-num">{totalComments}</span><span className="dash-stat-label">Comments on my posts</span></div>
       </div>
 
       {/* Two columns */}
@@ -81,7 +105,9 @@ function Dashboard() {
           {loading ? (
             <div className="feed-skeleton">Loading your posts…</div>
           ) : myPosts.length > 0 ? (
-            myPosts.map(post => <PostCard key={post.id} post={post} />)
+            myPosts.map(post => (
+              <PostCard key={post.id} post={post} onDelete={id => setMyPosts(prev => prev.filter(p => p.id !== id))} />
+            ))
           ) : (
             <div className="feed-empty-card">
               No posts yet. <Link to="/submit">Create your first post →</Link>
@@ -92,15 +118,22 @@ function Dashboard() {
         <aside className="dash-side">
           <div className="side-card">
             <h4 className="side-card-title">Recent interactions</h4>
-            {loading ? (
+            {interactionsLoading ? (
               <p className="side-muted">Loading activity…</p>
             ) : myRecentComments.length > 0 ? (
               myRecentComments.map(comment => (
                 <div key={comment.id} className="dash-activity">
-                  <p>You commented on <strong>“{comment.postTitle}”</strong></p>
-                  <span className="dash-activity-quote">“{comment.text}”</span>
+                  <p>
+                    You commented on{' '}
+                    <Link to={`/post/${comment.postId}`} style={{ color: 'var(--fb-blue)', fontWeight: 600, textDecoration: 'none' }}>
+                      "{comment.postTitle}"
+                    </Link>
+                  </p>
+                  <span className="dash-activity-quote">"{comment.text}"</span>
                   <span className="dash-activity-time">
-                    {comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleDateString() : 'Recent'}
+                    {comment.createdAt?.toDate
+                      ? comment.createdAt.toDate().toLocaleDateString()
+                      : 'Recent'}
                   </span>
                 </div>
               ))

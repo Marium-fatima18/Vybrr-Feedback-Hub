@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { signOut } from 'firebase/auth'
+import { Sun, Moon } from 'lucide-react'
 import { auth } from '../Firebase'
+import { avatarStyle } from '../utils/avatarColor'
+import { useTheme } from '../utils/useTheme'
 import './Style.css'
 
 function Navbar() {
@@ -16,6 +19,7 @@ function Navbar() {
     navigate('/auth')
   }
 
+  const { theme, toggle } = useTheme()
   const initial = (user?.displayName || user?.email || 'V').charAt(0).toUpperCase()
   const name = user?.displayName || (user?.email ? user.email.split('@')[0] : 'You')
 
@@ -38,36 +42,47 @@ function Navbar() {
         <NavLink to="/explore" className="topbar-tab" title="Explore">
           <span className="topbar-tab-icon">🧭</span>
         </NavLink>
-        <NavLink to="/submit" className="topbar-tab" title="Create post">
-          <span className="topbar-tab-icon">➕</span>
-        </NavLink>
         <NavLink to="/dashboard" className="topbar-tab" title="Dashboard">
           <span className="topbar-tab-icon">📊</span>
+        </NavLink>
+        <NavLink to="/groups" className="topbar-tab" title="Groups">
+          <span className="topbar-tab-icon">👥</span>
         </NavLink>
       </nav>
 
       {/* Right: profile menu */}
       <div className="topbar-right">
+        <button className="theme-toggle-btn" onClick={toggle} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        {/* Main topbar circle triggers the menu open/close toggle */}
         <button className="topbar-profile" onClick={() => setMenuOpen(o => !o)}>
-          <span className="avatar avatar-sm">{initial}</span>
+          <span className="avatar avatar-sm" style={avatarStyle(user?.displayName || user?.email || 'V')}>{initial}</span>
         </button>
 
         {menuOpen && (
           <>
             <div className="topbar-menu-backdrop" onClick={() => setMenuOpen(false)} />
             <div className="topbar-menu">
-              <div className="topbar-menu-head">
-                <span className="avatar">{initial}</span>
-                <div>
-                  <div className="topbar-menu-name">{name}</div>
-                  <div className="topbar-menu-email">{user?.email}</div>
+              
+              {/* 👑 UPDATED: Dropdown inner header is now a clickable NavLink leading to profile */}
+              <NavLink 
+                to="/profile" 
+                className="topbar-menu-head-link" 
+                onClick={() => setMenuOpen(false)}
+                style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+              >
+                <div className="topbar-menu-head" style={{ cursor: 'pointer' }}>
+                  <span className="avatar" style={avatarStyle(user?.displayName || user?.email || 'V')}>{initial}</span>
+                  <div>
+                    <div className="topbar-menu-name">{name}</div>
+                    <div className="topbar-menu-email">{user?.email}</div>
+                  </div>
                 </div>
-              </div>
+              </NavLink>
+
               <NavLink to="/dashboard" className="topbar-menu-item" onClick={() => setMenuOpen(false)}>
                 📊 My dashboard
-              </NavLink>
-              <NavLink to="/submit" className="topbar-menu-item" onClick={() => setMenuOpen(false)}>
-                ➕ Create a post
               </NavLink>
               <button className="topbar-menu-item topbar-logout" onClick={handleLogout}>
                 🚪 Log out

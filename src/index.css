@@ -7,23 +7,36 @@
 }
 
 :root {
-  /* Facebook-style palette */
-  --fb-blue: #1877f2;
-  --fb-blue-hover: #166fe5;
-  --fb-green: #42b72a;
-  --fb-green-hover: #36a420;
+  /* Vybrr dark theme */
+  --fb-blue: #5b8dee;
+  --fb-blue-hover: #4a7ce0;
+  --fb-green: #34d399;
+  --fb-green-hover: #10b981;
+  --bg: #0f1117;
+  --card: #1a2035;
+  --text: #e2e8f0;
+  --text-2: #8892a4;
+  --text-3: #55627a;
+  --hover: rgba(255, 255, 255, 0.04);
+  --hover-2: rgba(255, 255, 255, 0.08);
+  --divider: rgba(255, 255, 255, 0.1);
+  --like: #5b8dee;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+  --radius: 10px;
+}
+
+[data-theme="light"] {
   --bg: #f0f2f5;
   --card: #ffffff;
   --text: #050505;
   --text-2: #65676b;
-  --text-3: #8a8d91;
-  --hover: #f2f2f2;
-  --hover-2: #e4e6eb;
-  --divider: #ced0d4;
-  --like: #1877f2;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.1);
-  --shadow-pop: 0 12px 28px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
-  --radius: 8px;
+  --text-3: #90949c;
+  --hover: rgba(0, 0, 0, 0.05);
+  --hover-2: rgba(0, 0, 0, 0.10);
+  --divider: rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.18), 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 html, body, #root {
@@ -32,6 +45,7 @@ html, body, #root {
   color: var(--text);
   font-family: 'Inter', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s, color 0.15s;
 }
 
 a { color: inherit; }
