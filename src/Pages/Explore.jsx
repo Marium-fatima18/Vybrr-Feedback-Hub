@@ -29,6 +29,7 @@ function Explore() {
   }, [])
 
   const filteredPosts = allPosts.filter(post => {
+    if (post.groupId) return false
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory
     const term = search.toLowerCase()
     const matchesSearch =

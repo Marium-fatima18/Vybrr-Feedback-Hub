@@ -1,24 +1,42 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom' 
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage, auth } from '../Firebase'
-import Button from '../components/Button' 
+import Button from '../components/Button'
 import './Style.css'
 
 const CATEGORIES = ['Tech', 'Design', 'Dev', 'Career', 'Tutorial', 'Opinion', 'News']
 
 function Submit() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const preselectedGroupId = searchParams.get('groupId') || ''
 
   const [title, setTitle]             = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory]       = useState('')
-  const [tags, setTags]               = useState('')
   const [image, setImage]             = useState(null)
   const [preview, setPreview]         = useState(null)
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState('')
+  const [myGroups, setMyGroups]       = useState([])
+  const [selectedGroup, setSelectedGroup] = useState(preselectedGroupId)
+
+  useEffect(() => {
+    const fetchMyGroups = async () => {
+      if (!auth.currentUser) return
+      try {
+        const snapshot = await getDocs(
+          query(collection(db, 'groups'), where('members', 'array-contains', auth.currentUser.uid))
+        )
+        setMyGroups(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+      } catch (err) {
+        console.error('Error fetching groups:', err)
+      }
+    }
+    fetchMyGroups()
+  }, [])
 
   const handleImage = (e) => {
     const file = e.target.files[0]
@@ -36,10 +54,7 @@ function Submit() {
     setError('')
 
     const currentUser = auth.currentUser
-    if (!currentUser) {
-      return setError('You must be signed in to publish a post.')
-    }
-
+    if (!currentUser) return setError('You must be signed in to publish a post.')
     if (!title.trim())       return setError('Title is required.')
     if (!description.trim()) return setError('Description is required.')
     if (!category)           return setError('Please select a category.')
@@ -55,17 +70,12 @@ function Submit() {
         imageURL = await getDownloadURL(imageRef)
       }
 
-      const tagsArray = tags
-        .split(',')
-        .map(t => t.trim().toLowerCase())
-        .filter(Boolean)
-
       await addDoc(collection(db, 'posts'), {
         title:       title.trim(),
         description: description.trim(),
         category,
-        tags:        tagsArray,
         imageURL,
+        groupId:     selectedGroup || null,
         authorId:    currentUser.uid,
         authorName:  currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Anonymous'),
         authorEmail: currentUser.email || '',
@@ -75,7 +85,7 @@ function Submit() {
         comments:    [],
       })
 
-      navigate('/dashboard')
+      navigate(selectedGroup ? `/group/${selectedGroup}` : '/dashboard')
     } catch (err) {
       console.error(err)
       setError('Something went wrong. Please try again.')
@@ -121,31 +131,30 @@ function Submit() {
             <span className="char-count">{description.length}/2000</span>
           </div>
 
-          {/* Category + Tags */}
-          <div className="submit-row">
-            <div className="submit-field">
-              <label>Category <span className="required">*</span></label>
-              <select
-                value={category}
-                onChange={e => setCategory(e.target.value)}
-                className={category ? '' : 'placeholder'}
-              >
-                <option value="" disabled>Select a category</option>
-                {CATEGORIES.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+          {/* Category */}
+          <div className="submit-field">
+            <label>Category <span className="required">*</span></label>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className={category ? '' : 'placeholder'}
+            >
+              <option value="" disabled>Select a category</option>
+              {CATEGORIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
 
-            <div className="submit-field">
-              <label>Tags</label>
-              <input
-                type="text"
-                placeholder="react, firebase, css  (comma separated)"
-                value={tags}
-                onChange={e => setTags(e.target.value)}
-              />
-            </div>
+          {/* Post to (group selector) */}
+          <div className="submit-field">
+            <label>Post to</label>
+            <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}>
+              <option value="">Public Feed</option>
+              {myGroups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Image upload */}
@@ -191,9 +200,9 @@ function Submit() {
             >
               Publish post →
             </Button>
-            
+
             <Button
-              onClick={() => navigate('/')} // Fixed to navigate back home safely
+              onClick={() => navigate(-1)}
               disabled={loading}
               variant="ghost"
             >

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore'
 import { db, auth } from '../Firebase'
+import { avatarStyle } from '../utils/avatarColor'
 import './Style.css'
 
 function PostDetail() {
@@ -10,7 +11,12 @@ function PostDetail() {
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [updatedComment, setUpdatedComment] = useState('')
-  const hasLiked = post?.likedBy?.includes(auth.currentUser?.uid)
+  const [submitting, setSubmitting] = useState(false)
+  const [liking, setLiking] = useState(false)
+  const currentUid = auth.currentUser?.uid
+  const hasLiked = post?.likedBy?.some(item =>
+    (typeof item === 'string' ? item : item?.uid) === currentUid
+  )
 
   useEffect(() => {
     if (!id) { setLoading(false); return }
@@ -33,8 +39,9 @@ function PostDetail() {
 
   const handleAddComment = async (e) => {
     e.preventDefault()
-    if (!id || !updatedComment.trim() || !auth.currentUser) return
+    if (!id || !updatedComment.trim() || !auth.currentUser || submitting) return
 
+    setSubmitting(true)
     try {
       const postRef = doc(db, 'posts', id)
       const newComment = {
@@ -51,36 +58,50 @@ function PostDetail() {
       setUpdatedComment('')
     } catch (error) {
       console.error("Error adding comment: ", error)
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleLikeToggle = async () => {
-    if (!auth.currentUser || !id) return
+    if (!auth.currentUser || !id || liking) return
+    setLiking(true)
     try {
       const postRef = doc(db, 'posts', id)
       if (hasLiked) {
+        const existingEntry = post.likedBy.find(item =>
+          (typeof item === 'string' ? item : item?.uid) === currentUid
+        )
         await updateDoc(postRef, {
-          likedBy: arrayRemove(auth.currentUser.uid),
+          likedBy: arrayRemove(existingEntry),
           likes: increment(-1)
         })
         setPost(prev => ({
           ...prev,
           likes: (prev.likes || 1) - 1,
-          likedBy: prev.likedBy ? prev.likedBy.filter(uid => uid !== auth.currentUser.uid) : []
+          likedBy: prev.likedBy.filter(item =>
+            (typeof item === 'string' ? item : item?.uid) !== currentUid
+          )
         }))
       } else {
+        const likerEntry = {
+          uid: currentUid,
+          name: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'User'
+        }
         await updateDoc(postRef, {
-          likedBy: arrayUnion(auth.currentUser.uid),
+          likedBy: arrayUnion(likerEntry),
           likes: increment(1)
         })
         setPost(prev => ({
           ...prev,
           likes: (prev.likes || 0) + 1,
-          likedBy: prev.likedBy ? [...prev.likedBy, auth.currentUser.uid] : [auth.currentUser.uid]
+          likedBy: prev.likedBy ? [...prev.likedBy, likerEntry] : [likerEntry]
         }))
       }
     } catch (error) {
       console.error("Error toggling like: ", error)
+    } finally {
+      setLiking(false)
     }
   }
 
@@ -112,7 +133,7 @@ function PostDetail() {
       <article className="post-card detail-card">
         {/* Header */}
         <div className="post-head">
-          <span className="avatar">{initial}</span>
+          <span className="avatar" style={avatarStyle(authorName)}>{initial}</span>
           <div className="post-head-meta">
             <span className="post-author">{authorName}</span>
             <span className="post-sub">{dateFormatted} · <span className="post-cat-inline">{post.category || 'General'}</span></span>
@@ -145,11 +166,11 @@ function PostDetail() {
 
         {/* Actions */}
         <div className="post-actions">
-          <button onClick={handleLikeToggle} className={`post-action ${hasLiked ? 'post-action-liked' : ''}`}>
-            {hasLiked ? '❤️' : '👍'} Like
+          <button onClick={handleLikeToggle} disabled={liking} className={`post-action ${hasLiked ? 'post-action-liked' : ''}`}>
+            {hasLiked ? '❤️' : '👍'} {liking ? '…' : 'Like'}
           </button>
           <a href="#comment-box" className="post-action">💬 Comment</a>
-          <button className="post-action">↗ Share</button>
+          {/* <button className="post-action">↗ Share</button> */}
         </div>
       </article>
 
@@ -158,7 +179,7 @@ function PostDetail() {
         <h3 className="comments-heading">Comments <span>{comments.length}</span></h3>
 
         <form id="comment-box" onSubmit={handleAddComment} className="comment-form">
-          <span className="avatar avatar-sm">
+          <span className="avatar avatar-sm" style={avatarStyle(auth.currentUser?.displayName || auth.currentUser?.email || 'U')}>
             {(auth.currentUser?.displayName || auth.currentUser?.email || 'U').charAt(0).toUpperCase()}
           </span>
           <input
@@ -167,14 +188,16 @@ function PostDetail() {
             value={updatedComment}
             onChange={(e) => setUpdatedComment(e.target.value)}
           />
-          <button type="submit">Post</button>
+          <button type="submit" disabled={submitting || !updatedComment.trim()}>
+            {submitting ? 'Posting…' : 'Post'}
+          </button>
         </form>
 
         <div className="comment-list">
           {comments.length > 0 ? (
             comments.map((comment, index) => (
               <div key={index} className="comment-item">
-                <span className="avatar avatar-sm">{(comment.authorName || 'U').charAt(0).toUpperCase()}</span>
+                <span className="avatar avatar-sm" style={avatarStyle(comment.authorName || 'U')}>{(comment.authorName || 'U').charAt(0).toUpperCase()}</span>
                 <div className="comment-bubble">
                   <div className="comment-author">{comment.authorName}</div>
                   <div className="comment-text">{comment.text}</div>
